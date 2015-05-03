@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-var fs      = require('fs');
 var program = require('commander');
 var moment  = require('moment');
 var assert  = require('assert');
-var packg   = fs.readFileSync('./package.json');
+var packg   = require(__dirname + '/package.json');
 var debug   = require('debug');
 
 var azurin  = require('./index');
