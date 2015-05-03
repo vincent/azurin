@@ -3,6 +3,14 @@
 - Backup an Azure SQL database to a blob
 - Restore a backup in an Azure SQL database
 
+# install
+
+```
+npm install -g azurin
+```
+
+# usage
+
 ```
 azurin <backup/restore> [options]
 
