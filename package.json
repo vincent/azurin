@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backup and restore Azure SQL databases",
   "main": "index.js",
+  "bin" : {
+    "azurin": "./command.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
