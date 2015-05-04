@@ -1,14 +1,19 @@
 'use strict';
 
 var debug   = require('debug')('azurin');
+var fs      = require('fs');
+var path    = require('path');
 var assert  = require('assert');
 var request = require('request');
 var azure   = require('azure-storage');
+var mgmtSQL = require('azure-mgmt-sql');
 
-var AZURE_DAC_URL_EXPORT  = 'https://db3prod-dacsvc.azure.com/DACWebService.svc/Export';
-var AZURE_DAC_URL_IMPORT  = 'https://db3prod-dacsvc.azure.com/DACWebService.svc/Import';
-var AZURE_DAC_URL_SERVICE = 'BlobStorageAccessKeyCredentials:#Microsoft.SqlServer.Management.Dac.ServiceTypes';
+var certificate = process.env.AZURE_CERTIFICATE;
 
+var sqlmgmt = mgmtSQL.createSqlManagementClient(mgmtSQL.createCertificateCloudCredentials({
+    subscriptionId: path.basename(certificate, '.pem'),
+    pem: fs.readFileSync(certificate)
+}));
 
 module.exports = {
     backup: exportToBlob,
@@ -16,69 +21,41 @@ module.exports = {
     lastImportInBlobStorage: lastImportInBlobStorage
 };
 
-/**
- * Import/Export request
- *
- * @param  {string}   service  service URL
- * @param  {object}   db       { server, name, user, password }
- * @param  {object}   blob     { name, account_name, account_key  }
- * @param  {function} callback callback
- *
- * @return {request}           The underlying request
- */
-function azurinRequest (service, db, blob, callback) {
-
-    assert(blob.name,         'You must provide blob.name');
-    assert(blob.account_name, 'You must provide blob.account_name');
-    assert(blob.account_key,  'You must provide blob.account_key');
-
-    assert(db.name,     'You must provide db.name');
-    assert(db.password, 'You must provide db.password');
-    assert(db.server,   'You must provide db.server');
-    assert(db.user,     'You must provide db.user');
-
-    blob.uri = (blob.name.match(/^http/)) ? blob.name :
-        'https://' + blob.account_name + '.blob.core.windows.net/' + blob.container + blob.name;
-
-    var body = {
-        ConnectionInfo: connectionInfoDB(db),
-        BlobCredentials: {
-            Uri: blob.uri,
-            __type: AZURE_DAC_URL_SERVICE,
-            StorageAccessKey: blob.account_key
-        }
-    };
-
-    return request.post({
-        uri:     service,
-        body:    JSON.stringify(body),
-        headers: { 'Content-Type': 'application/json' }
-
-    }, callback);
-}
-
 
 /**
  * Export database to a blob storage
  *
  * @param  {object}   db       { server, name, user, password }
- * @param  {object}   blob     { name, account_name, account_key  }
+ * @param  {object}   blob     { name, accountName, accountKey  }
  * @param  {function} callback callback
  *
  * @return {request}  The underlying request
  */
 function exportToBlob (db, blob, callback) {
 
-    return azurinRequest(AZURE_DAC_URL_EXPORT, db, blob, function(e, r, b) {
+    debug('will backup ' + db.server + '/' + db.name + ' to ' + blob.accountName + '/' + blob.name);
 
-        if (e || r.statusCode !== 200) {
-            debug('backup queuing failed: ' + (e || r.statusCode));
-            callback(e || r.statusCode);
-        } else {
-            var guid = extractGuid(b);
-            debug(blob.uri + ' successfully queued. Guid=' + guid);
-            callback(null, guid);
+    var parameters = {
+        connectionInfo: connectionInfoDB(db),
+        blobCredentials: {
+            storageAccessKey: blob.accountKey,
+            uri: blob.uri
         }
+    };
+
+    console.log(parameters);
+
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+    return sqlmgmt.dac.exportMethod(db.server, parameters, function(error, result) {
+
+        if (error) {
+            debug('backup queuing failed: ' + error);
+            return callback(error);
+        }
+
+        debug(blob.uri + ' successfully queued. Guid=' + result.guid);
+        callback(null, result.guid);
     });
 }
 
@@ -87,33 +64,60 @@ function exportToBlob (db, blob, callback) {
  * Import database from a blob storage
  *
  * @param  {object}   db       { server, name, user, password }
- * @param  {object}   blob     { name, account_name, account_key  }
+ * @param  {object}   blob     { name, accountName, accountKey  }
  * @param  {function} callback callback
  *
  * @return {request}  The underlying request
  */
 function importFromBlob (db, blob, callback) {
 
-    return azurinRequest(AZURE_DAC_URL_IMPORT, db, blob, function(e, r, b) {
+    debug('will restore ' + blob.accountName + '/' + blob.name + ' to ' + db.server + '/' + db.name);
 
-        if (e || r.statusCode !== 200) {
-            debug('restore queuing failed: ' + (e || r.statusCode));
-            callback(e || r.statusCode);
-        } else {
-            var guid = extractGuid(b);
-            debug(db.name + ' successfully queued. Guid=' + guid);
-            callback(null, guid);
+    assert(blob.name,        'You must provide blob.name');
+    assert(blob.accountName, 'You must provide blob.accountName');
+    assert(blob.accountKey,  'You must provide blob.accountKey');
+
+    assert(db.name,     'You must provide db.name');
+    assert(db.password, 'You must provide db.password');
+    assert(db.server,   'You must provide db.server');
+    assert(db.user,     'You must provide db.user');
+
+    blob.uri = (blob.name.match(/^http/)) ? blob.name :
+        'https://' + blob.accountName + '.blob.core.windows.net/' + blob.container + '/' +  blob.name;
+
+    var parameters = {
+        connectionInfo: connectionInfoDB(db),
+        azureEdition: db.edition  || 'Business',
+        databaseSizeInGB: db.size || 10,
+        blobCredentials: {
+            storageAccessKey: blob.accountKey,
+            uri: blob.uri
         }
+    };
+
+    console.log(parameters);
+
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+    return sqlmgmt.dac.importMethod(db.server, parameters, function(error, result) {
+
+        if (error) {
+            debug('restore queuing failed: ' + error);
+            return callback(error);
+        }
+
+        debug(db.name + ' successfully queued. Guid=' + result.guid);
+        callback(null, result.guid);
     });
 }
 
 
 function connectionInfoDB (db) {
     return {
-        DatabaseName: db.name,
-        Password:     db.password,
-        ServerName:   db.server,
-        UserName:     db.user
+        databaseName: db.name,
+        password:     db.password,
+        serverName:   db.server,
+        userName:     db.user
     };
 }
 

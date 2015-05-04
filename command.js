@@ -53,8 +53,8 @@ var db = {
 var blob = {
     name: program.blobName,
     container: program.blobContainer || db.name,
-    account_name: program.blobAccount,
-    account_key: program.blobAccountKey
+    accountName: program.blobAccount,
+    accountKey: program.blobAccountKey
 };
 
 function guessBlobName (op, callback) {
@@ -65,7 +65,7 @@ function guessBlobName (op, callback) {
             return callback(null, blob.name);
 
         } else if (op === 'restore') {
-            return azurin.lastImportInBlobStorage(blob.account_name, blob.account_key, blob.container, function (error, lastBlob) {
+            return azurin.lastImportInBlobStorage(blob.accountName, blob.accountKey, blob.container, function (error, lastBlob) {
                 blob.name = blob.container + '/' + lastBlob.name;
                 callback(error, blob.name);
             });
