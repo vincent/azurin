@@ -18,6 +18,7 @@ var sqlmgmt = mgmtSQL.createSqlManagementClient(mgmtSQL.createCertificateCloudCr
 module.exports = {
     backup: exportToBlob,
     restore: importFromBlob,
+    requestStatus: requestStatus,
     lastImportInBlobStorage: lastImportInBlobStorage
 };
 
@@ -42,8 +43,6 @@ function exportToBlob (db, blob, callback) {
             uri: blob.uri
         }
     };
-
-    console.log(parameters);
 
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -82,6 +81,10 @@ function importFromBlob (db, blob, callback) {
     assert(db.server,   'You must provide db.server');
     assert(db.user,     'You must provide db.user');
 
+    db.user = db.user.match(/@/) ? db.user : db.user + '@' + db.server;
+
+    db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
+
     blob.uri = (blob.name.match(/^http/)) ? blob.name :
         'https://' + blob.accountName + '.blob.core.windows.net/' + blob.container + '/' +  blob.name;
 
@@ -95,8 +98,6 @@ function importFromBlob (db, blob, callback) {
         }
     };
 
-    console.log(parameters);
-
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     return sqlmgmt.dac.importMethod(db.server, parameters, function(error, result) {
@@ -109,6 +110,11 @@ function importFromBlob (db, blob, callback) {
         debug(db.name + ' successfully queued. Guid=' + result.guid);
         callback(null, result.guid);
     });
+}
+
+
+function requestStatus (db, guid, callback) {
+    return sqlmgmt.dac.getStatus(db.server, db.server + '.database.windows.net', db.user, db.password, guid, callback);
 }
 
 
