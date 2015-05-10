@@ -7,11 +7,12 @@ var assert  = require('assert');
 var packg   = require(__dirname + '/package.json');
 var debug   = require('debug');
 
-var azurin  = require('./index');
+var Azurin  = require('./index');
 
 program
   .version(packg.version)
-  .usage('<backup/restore/rstatus> [options]')
+  .usage('<backup/restore/status> [options]')
+  .option('--certificate <file>',     'Azure certificate, defaults to AZURE_CERTIFICATE')
   .option('--db-user <server>',       'Database user')
   .option('--db-password <password>', 'Database password')
   .option('--db-server <server>',     'Database server')
@@ -28,12 +29,13 @@ program
 program.on('--help', function(){
   console.log('  Example:');
   console.log('');
-  console.log('    $ command backup  --db-user user --db-password password --db-server server --db-name dbname --blob-account storage');
-  console.log('    $ command restore --db-user user --db-password password --db-server server --db-name dbname --blob-account storage');
-  console.log('    $ command rstatus --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011');
+  console.log('   $ command backup  --db-user user --db-password password --db-server server --db-name dbname --blob-account storage');
+  console.log('   $ command restore --db-user user --db-password password --db-server server --db-name dbname --blob-account storage');
+  console.log('   $ command status  --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011');
   console.log('');
 });
 
+program.certificate    = program.certificate    || process.env.process.env.AZURE_CERTIFICATE;
 program.blobAccount    = program.blobAccount    || process.env.AZURE_STORAGE_ACCOUNT;
 program.blobAccountKey = program.blobAccountKey || process.env.AZURE_STORAGE_ACCESS_KEY;
 
@@ -43,7 +45,11 @@ if (program.verbose) {
 
 var op = program.args[0];
 
-if (op !== 'rstatus' && op !== 'backup' && op !== 'restore' ||
+/* jshint newcap: false */
+var azurin = Azurin(program.certificate);
+/* jshint newcap: true */
+
+if (op !== 'status' && op !== 'backup' && op !== 'restore' ||
   ! (program.dbUser && program.dbPassword && program.dbServer && program.dbName) ||
   ! (program.blobAccount && program.blobAccountKey)) {
   program.help();
@@ -82,11 +88,22 @@ function guessBlobName (op, callback) {
   return callback(null, blob.name);
 }
 
-if (op === 'rstatus') {
-  azurin.requestStatus(db, program.requestId, function(error, result){
-    console.log(result.statusInfoList);
-    process.exit(error ? 1 : 0);
-  });
+if (op === 'status') {
+  if (program.wait) {
+    azurin.waitUntilRequestFinish(db, program.requestId,
+      function (error) {
+        process.exit(error ? 1 : 0);
+      },
+      function (error, result) {
+        console.log(result ? result.status : '');
+      });
+  } else {
+    azurin.requestStatus(db, program.requestId, function(error, result){
+      console.log(result.status);
+      process.exit();
+    });
+  }
+
 
 } else {
   guessBlobName(op, function(error, name) {
@@ -99,9 +116,9 @@ if (op === 'rstatus') {
           process.exit(error ? 1 : 0);
         });
       } else {
+        console.log(op, 'queued as request', guid);
         process.exit();
       }
-
     });
   });
 }

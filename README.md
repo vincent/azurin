@@ -1,7 +1,11 @@
 # azurin
 
-- Backup an Azure SQL database to a blob
-- Restore a backup in an Azure SQL database
+Backup and restore an Azure SQL database.
+
+- automatically uses blob/dbname/dbname-YYYY-MM-DD-HH-mm.bacpac
+- automatically restores the latest blob to dbname-YYYY-MM-DD-HH-mm
+- does not store passwords or access_key, use an azure certificate
+- check a import/export request status, or wait for the request to finish
 
 # install
 
@@ -11,25 +15,51 @@ npm install -g azurin
 
 # usage
 
+Backup an Azure SQL database to a blob stored bacpac, as [Start-AzureSqlDatabaseImport](https://msdn.microsoft.com/en-us/library/dn546725.aspx)
+
+Restore a bacpac as a new Azure SQL database, as [Start-AzureSqlDatabaseExport](https://msdn.microsoft.com/en-us/library/dn546720.aspx)
+
 ```
 azurin <backup/restore> [options]
 
 Options:
 
-  -h, --help                    output usage information
-  -V, --version                 output the version number
-  -u, --db-user <server>        Database user
-  -p, --db-password <password>  Database password
-  -s, --db-server <server>      Database server
-  -d, --db-name <name>          Database name
-  -a, --blob-account <account>  Blob storage account name
-  -k, --blob-account-key <key>  Blob storage account key
-  -b, --blob-name <cont/name>   Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac
-  -c, --blob-container <cont>   Blob container, defaults to database name
-  -v, --verbose                 Verbose
+  --help                     Output usage information
+  --certificate <file>       Azure certificate, defaults to AZURE_CERTIFICATE
+  --db-user <server>         Database user
+  --db-password <password>   Database password
+  --db-server <server>       Database server
+  --db-name <name>           Database name
+  --blob-account <account>   Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT
+  --blob-account-key <key>   Optional blob storage account key
+  --blob-name <cont/name>    Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac for backups, and latest blob in container for restore
+  --blob-container <cont>    Blob container, defaults to database name
+  --request-id               Request GUID
+  --wait                     Wait for the request to finish
+  --verbose                  Verbose
 
 Example:
 
   $ command backup -u user -p password -s server -d dbname -a storage -k 12345
   $ command restore --db-user user --db-password password --db-server server --db-name dbname --blob-account storage --blob-account-key 12345
+```
+
+```
+azurin <status> [options]
+
+Options:
+
+  --help                     Output usage information
+  --certificate <file>       Azure certificate, defaults to AZURE_CERTIFICATE
+  --db-user <server>         Database user
+  --db-password <password>   Database password
+  --db-server <server>       Database server
+  --db-name <name>           Database name
+  --request-id               Request GUID
+  --wait                     Wait for the request to finish
+  --verbose                  Verbose
+
+Example:
+
+  $ command status --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011
 ```

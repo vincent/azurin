@@ -2,7 +2,11 @@
 /* global describe, it, before, after */
 'use strict';
 
-var azurin = require('../index');
+var Azurin = require('../index');
+
+/* jshint newcap: false */
+var azurin = Azurin(process.env.AZURE_CERTIFICATE);
+/* jshint newcap: true */
 
 var path   = require('path');
 var moment = require('moment');
@@ -49,7 +53,7 @@ function gotRestoreRequest (done) {
 
 describe('#backup()', function(){
 
-  this.timeout(300000);
+  this.timeout(10000);
 
   it('should return a backup request GUID', function(done){
     blob.name = db.name + '-' + moment().format('YYYY-MM-DD-HH-mm') + '.bacpac';
@@ -65,17 +69,18 @@ describe('#backup()', function(){
 
 describe('when we got backup request GUID', function(){
 
-  this.timeout(300000);
+  this.timeout(20000);
 
   before(function(done) {
     gotBackupRequest(done);
   });
 
   describe('#waitUntilRequestFinish() (backup)', function(){
-    it('should wait until the request finish', function(done){
+    it('should wait until the backup request finish', function(done){
       azurin.waitUntilRequestFinish(db, backupRequestGuid, function (error) {
         assert(! error);
         backupRequestFinished = true;
+        blob.hasBeenCopied = true;
         done();
       });
     });
@@ -114,13 +119,29 @@ describe('when we got restore request GUID', function(){
     gotRestoreRequest(done);
   });
 
-  after(function(){
-    // TODO: delete DB and blob
+  after(function(done){
+    if (blob.hasBeenCopied) {
+      azurin.deleteBlob(blob, function () {
+        if (db.hasBeenRestored) {
+          azurin.deleteDatabase(db, function () {
+            done();
+          });
+        }
+      });
+    } else if (db.hasBeenRestored) {
+      azurin.deleteDatabase(db, function () {
+        done();
+      });
+    }
   });
 
   describe('#waitUntilRequestFinish() (restore)', function(){
-    it('should wait until the request finish', function(done){
-      azurin.waitUntilRequestFinish(db, restoreRequestGuid, done);
+    it('should wait until the restore request finish', function(done){
+      azurin.waitUntilRequestFinish(db, restoreRequestGuid, function(error){
+        assert(! error);
+        db.hasBeenRestored = true;
+        done();
+      });
     });
   });
 
