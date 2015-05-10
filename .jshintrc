@@ -19,12 +19,5 @@
   "sub": true,
   "maxlen": 150,
   "globals": {
-    "$": true,
-    "_": true,
-    "ASTON": true,
-    "moment": true,
-    "numeral": true,
-    "Backbone": true,
-    "vis": true
   }
 }

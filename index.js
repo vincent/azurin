@@ -44,6 +44,8 @@ function exportToBlob (db, blob, callback) {
         }
     };
 
+    console.log(parameters);
+
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     return sqlmgmt.dac.exportMethod(db.server, parameters, function(error, result) {
@@ -98,9 +100,13 @@ function importFromBlob (db, blob, callback) {
         }
     };
 
+    console.log(parameters);
+
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     return sqlmgmt.dac.importMethod(db.server, parameters, function(error, result) {
+
+        console.log(result);
 
         if (error) {
             debug('restore queuing failed: ' + error);

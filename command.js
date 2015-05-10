@@ -16,8 +16,8 @@ program
   .option('-p, --db-password <password>', 'Database password')
   .option('-s, --db-server <server>',     'Database server')
   .option('-d, --db-name <name>',         'Database name')
-  .option('-a, --blob-account <account>', 'Blob storage account name')
-  .option('-k, --blob-account-key <key>', 'Blob storage account key')
+  .option('-a, --blob-account <account>', 'Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT')
+  .option('-k, --blob-account-key <key>', 'Blob storage account key, defaults to AZURE_STORAGE_ACCESS_KEY')
   .option('-b, --blob-name <cont/name>',  'Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac')
   .option('-c, --blob-container <cont>',  'Blob container, defaults to database name')
   .option('-r, --request-id',             'Request GUID')
@@ -32,6 +32,9 @@ program.on('--help', function(){
   console.log('    $ command rstatus --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011');
   console.log('');
 });
+
+program.blobAccount    = program.blobAccount    || process.env.AZURE_STORAGE_ACCOUNT;
+program.blobAccountKey = program.blobAccountKey || process.env.AZURE_STORAGE_ACCESS_KEY;
 
 if (program.verbose) {
     debug.enable('azurin');
