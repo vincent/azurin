@@ -26,6 +26,7 @@
   "homepage": "https://github.com/vincent/azurin",
   "dependencies": {
     "azure-mgmt-sql": "^0.9.17",
+    "azure-mgmt-storage": "^0.9.16",
     "azure-storage": "^0.4.3",
     "commander": "^2.8.1",
     "debug": "^2.1.3",
