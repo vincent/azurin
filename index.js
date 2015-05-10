@@ -23,6 +23,7 @@ module.exports = {
     backup: exportToBlob,
     restore: importFromBlob,
     requestStatus: requestStatus,
+    waitUntilRequestFinish: waitUntilRequestFinish,
     lastImportInBlobStorage: lastImportInBlobStorage
 };
 
