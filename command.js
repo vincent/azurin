@@ -17,7 +17,7 @@ program
   .option('-s, --db-server <server>',     'Database server')
   .option('-d, --db-name <name>',         'Database name')
   .option('-a, --blob-account <account>', 'Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT')
-  .option('-k, --blob-account-key <key>', 'Blob storage account key, defaults to AZURE_STORAGE_ACCESS_KEY')
+  .option('-k, --blob-account-key <key>', 'Blob storage account key, optional, defaults to AZURE_STORAGE_ACCESS_KEY')
   .option('-b, --blob-name <cont/name>',  'Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac')
   .option('-c, --blob-container <cont>',  'Blob container, defaults to database name')
   .option('-r, --request-id',             'Request GUID')
@@ -65,13 +65,14 @@ var blob = {
 function guessBlobName (op, callback) {
 
   if (! blob.name) {
+
     if (op === 'backup') {
-      blob.name = blob.container + '/' + db.name + '-' + moment().format('YYYY-MM-DD-HH-mm') + '.bacpac';
+      blob.name = db.name + '-' + moment().format('YYYY-MM-DD-HH-mm') + '.bacpac';
       return callback(null, blob.name);
 
     } else if (op === 'restore') {
       return azurin.lastImportInBlobStorage(blob.accountName, blob.accountKey, blob.container, function (error, lastBlob) {
-        blob.name = blob.container + '/' + lastBlob.name;
+        blob.name = lastBlob.name;
         callback(error, blob.name);
       });
     }
