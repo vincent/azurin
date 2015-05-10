@@ -56,8 +56,6 @@ function exportToBlob (db, blob, callback) {
             }
         };
 
-        console.log(parameters);
-
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
         return sqlmgmt.dac.exportMethod(db.server.split('.')[0], parameters, function(error, result) {
@@ -119,13 +117,9 @@ function importFromBlob (db, blob, callback) {
             }
         };
 
-        console.log(parameters);
-
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
         return sqlmgmt.dac.importMethod(db.server.split('.')[0], parameters, function(error, result) {
-
-            console.log(result);
 
             if (error) {
                 debug('restore queuing failed: ' + error);
@@ -146,9 +140,36 @@ function importFromBlob (db, blob, callback) {
 
 
 function requestStatus (db, guid, callback) {
-    return sqlmgmt.dac.getStatus(db.server, db.server + '.database.windows.net', db.user, db.password, guid, callback);
+    db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
+    return sqlmgmt.dac.getStatus(db.server.split('.')[0], db.server, db.user, db.password, guid, function (error, result) {
+        if (error || !result.statusInfoList) { return callback(error); }
+        callback(error, result.statusInfoList[0]);
+    });
 }
 
+
+function waitUntilRequestFinish (db, guid, callback) {
+    function retry () {
+        requestStatus (db, guid, function (error, req) {
+            // error
+            if (error) {
+                debug('error: ' + error);
+                return callback(error);
+            }
+            // finished !
+            else if (! error && !status) {
+                debug('request ' + guid + ' finished');
+                return callback(null);
+            }
+
+            else {
+                debug('still ' + req.status.toLowerCase());
+                setTimeout(retry, 10 * 1000);
+            }
+        });
+    }
+    retry();
+}
 
 function connectionInfoDB (db) {
     return {

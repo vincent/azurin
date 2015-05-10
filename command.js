@@ -12,23 +12,24 @@ var azurin  = require('./index');
 program
   .version(packg.version)
   .usage('<backup/restore/rstatus> [options]')
-  .option('-u, --db-user <server>',       'Database user')
-  .option('-p, --db-password <password>', 'Database password')
-  .option('-s, --db-server <server>',     'Database server')
-  .option('-d, --db-name <name>',         'Database name')
-  .option('-a, --blob-account <account>', 'Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT')
-  .option('-k, --blob-account-key <key>', 'Blob storage account key, optional, defaults to AZURE_STORAGE_ACCESS_KEY')
-  .option('-b, --blob-name <cont/name>',  'Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac')
-  .option('-c, --blob-container <cont>',  'Blob container, defaults to database name')
-  .option('-r, --request-id',             'Request GUID')
-  .option('-v, --verbose',                'Verbose')
+  .option('--db-user <server>',       'Database user')
+  .option('--db-password <password>', 'Database password')
+  .option('--db-server <server>',     'Database server')
+  .option('--db-name <name>',         'Database name')
+  .option('--blob-account <account>', 'Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT')
+  .option('--blob-account-key <key>', 'Blob storage account key, optional, defaults to AZURE_STORAGE_ACCESS_KEY')
+  .option('--blob-name <cont/name>',  'Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac')
+  .option('--blob-container <cont>',  'Blob container, defaults to database name')
+  .option('--request-id',             'Request GUID')
+  .option('--wait',                   'Wait for the request to finish')
+  .option('--verbose',                'Verbose')
   .parse(process.argv);
 
 program.on('--help', function(){
   console.log('  Example:');
   console.log('');
-  console.log('    $ command backup -u user -p password -s server -d dbname -a storage -k 12345');
-  console.log('    $ command restore --db-user user --db-password password --db-server server --db-name dbname --blob-account storage --blob-account-key 12345');
+  console.log('    $ command backup  --db-user user --db-password password --db-server server --db-name dbname --blob-account storage');
+  console.log('    $ command restore --db-user user --db-password password --db-server server --db-name dbname --blob-account storage');
   console.log('    $ command rstatus --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011');
   console.log('');
 });
@@ -89,8 +90,18 @@ if (op === 'rstatus') {
 
 } else {
   guessBlobName(op, function(error, name) {
-    azurin[op](db, blob, function(error){
-      process.exit(error ? 1 : 0);
+    azurin[op](db, blob, function(error, guid){
+      if (error) return process.exit(1);
+      if (!error && !guid) return process.exit(0);
+
+      if (program.wait) {
+        azurin.waitUntilRequestFinish(db, guid, function (error) {
+          process.exit(error ? 1 : 0);
+        });
+      } else {
+        process.exit();
+      }
+
     });
   });
 }
