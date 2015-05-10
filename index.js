@@ -196,9 +196,14 @@ function blobAccountKey (accountName, callback) {
 
     storagemgmt.storageAccounts.getKeys(accountName, function (err, result) {
 
-      debug('ask for blob accountKey: ' + accountName + ': ' + result.primaryKey);
+        if (err) {
+            debug(err);
+            return callback(err);
+        }
 
-      callback(err, result.primaryKey);
+        debug('ask for blob accountKey: ' + accountName + ': ' + result.primaryKey);
+
+        callback(err, result.primaryKey);
     });
 }
 
