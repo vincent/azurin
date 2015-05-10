@@ -158,7 +158,7 @@ function waitUntilRequestFinish (db, guid, callback) {
                 return callback(error);
             }
             // finished !
-            else if (! error && !req.status) {
+            else if (! error && (!req.status || req.status.toLowerCase() === 'completed')) {
                 debug('request ' + guid + ' finished');
                 return callback(null);
             }
