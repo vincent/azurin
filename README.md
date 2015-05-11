@@ -65,3 +65,8 @@ Example:
 
   $ command status --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011
 ```
+
+# tests
+
+A test suite is available as `npm test` and uses Mocha. It backups, restore, and delete a database.
+This test assumes all AZURE_CERTIFICATE, AZURE_STORAGE_ACCOUNT, AZURIN_TEST_BLOBACCOUNT, AZURIN_TEST_DBUSER, AZURIN_TEST_DBPASSWORD, AZURIN_TEST_DBNAME and AZURIN_TEST_DBSERVER environment variables are set.
