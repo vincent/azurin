@@ -1,5 +1,7 @@
 # azurin
 
+[![Build Status](http://ci.three-arena.com/buildStatus/icon?job=azurin)](http://ci.three-arena.com/job/azurin/)
+
 Backup and restore an Azure SQL database.
 
 - automatically uses blob/dbname/dbname-YYYY-MM-DD-HH-mm.bacpac
