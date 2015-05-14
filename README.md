@@ -32,13 +32,14 @@ Options:
   --db-password <password>   Database password
   --db-server <server>       Database server
   --db-name <name>           Database name
+  --db-edition <edition>     Database edition, defaults to Business
+  --db-size <size>           Database size in Gb, defaults to 10
   --blob-account <account>   Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT
   --blob-account-key <key>   Optional blob storage account key
   --blob-name <cont/name>    Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac for backups, and latest blob in container for restore
   --blob-container <cont>    Blob container, defaults to database name
   --request-id               Request GUID
   --wait                     Wait for the request to finish
-  --verbose                  Verbose
 
 Example:
 
@@ -59,12 +60,15 @@ Options:
   --db-name <name>           Database name
   --request-id               Request GUID
   --wait                     Wait for the request to finish
-  --verbose                  Verbose
 
 Example:
 
   $ command status --db-user user --db-password password --db-server server --db-name dbname --request-id 1234-5678-91011
 ```
+
+# debug
+
+Set the `DEBUG` environment variable to `azurin` to show every steps.
 
 # tests
 

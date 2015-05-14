@@ -121,7 +121,7 @@ describe('when we got restore request GUID', function(){
 
   after(function(done){
     if (blob.hasBeenCopied) {
-      azurin.deleteBlob(blob, function () {
+      azurin.deleteContainer(blob, function () {
         if (db.hasBeenRestored) {
           azurin.deleteDatabase(db, function () {
             done();

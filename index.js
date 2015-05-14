@@ -38,6 +38,7 @@ module.exports = function (certificate, subscriptionId) {
 
     // mainly for tests
     deleteDatabase: deleteDatabase,
+    deleteContainer: deleteContainer,
     deleteBlob: deleteBlob
   };
 };
@@ -58,31 +59,46 @@ function exportToBlob (db, blob, callback) {
 
   function processRequest (error, primaryKey) {
 
-    db.user = db.user.match(/@/) ? db.user : db.user + '@' + db.server;
-    db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
+    if (error) {
+      debug(error);
+      return callback(error);
+    }
 
-    blob.uri = (blob.name.match(/^http/)) ? blob.name :
+    if (! primaryKey) {
+      debug('cannot process without accountKey');
+      return callback(new Error('cannot access storage account'));
+    }
+
+    db.user   = db.user.match(/@/) ? db.user : db.user + '@' + db.server;
+    db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
+    blob.uri  = (blob.name.match(/^http/)) ? blob.name :
       'https://' + blob.accountName + '.blob.core.windows.net/' + blob.container + '/' +  blob.name;
 
     var parameters = {
-      connectionInfo: connectionInfoDB(db),
+      connectionInfo: {
+        databaseName: db.name,
+        password:     db.password,
+        serverName:   db.server,
+        userName:     db.user
+      },
       blobCredentials: {
         storageAccessKey: primaryKey,
         uri: blob.uri
       }
     };
 
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    ensureContainerExists(blob.accountName, primaryKey, blob.container, function (error) {
+      if (error) return callback(error);
+      return sqlmgmt.dac.exportMethod(db.server.split('.')[0], parameters, function(error, result) {
 
-    return sqlmgmt.dac.exportMethod(db.server.split('.')[0], parameters, function(error, result) {
+        if (error) {
+          debug('backup queuing failed: ' + error);
+          return callback(error);
+        }
 
-      if (error) {
-        debug('backup queuing failed: ' + error);
-        return callback(error);
-      }
-
-      debug(blob.uri + ' successfully queued. Guid=' + result.guid);
-      callback(null, result.guid);
+        debug(blob.uri + ' successfully queued. Guid=' + result.guid);
+        callback(null, result.guid);
+      });
     });
   }
 
@@ -117,14 +133,28 @@ function importFromBlob (db, blob, callback) {
 
   function processRequest (error, primaryKey) {
 
+    if (error) {
+      debug(error);
+      return callback(error);
+    }
+
+    if (! primaryKey) {
+      debug('cannot process without accountKey');
+      return callback(new Error('cannot access storage account'));
+    }
+
     db.user   = db.user.match(/@/) ? db.user : db.user + '@' + db.server;
     db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
-
     blob.uri  = (blob.name.match(/^http/)) ? blob.name :
       'https://' + blob.accountName + '.blob.core.windows.net/' + blob.container + '/' +  blob.name;
 
     var parameters = {
-      connectionInfo: connectionInfoDB(db),
+      connectionInfo: {
+        databaseName: db.name,
+        password:     db.password,
+        serverName:   db.server,
+        userName:     db.user
+      },
       azureEdition: db.edition  || 'Business',
       databaseSizeInGB: db.size || 10,
       blobCredentials: {
@@ -132,8 +162,6 @@ function importFromBlob (db, blob, callback) {
         uri: blob.uri
       }
     };
-
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     return sqlmgmt.dac.importMethod(db.server.split('.')[0], parameters, function(error, result) {
 
@@ -192,20 +220,6 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
   retry();
 }
 
-function connectionInfoDB (db) {
-  return {
-    databaseName: db.name,
-    password:     db.password,
-    serverName:   db.server,
-    userName:     db.user
-  };
-}
-
-
-function extractGuid (text) {
-  return text.match(/<guid.*>(.*)<\/guid>/g)[1];
-}
-
 
 function sortBlobs (a, b) {
   return a.properties['last-modified'] > b.properties['last-modified'] ? 1 : -1;
@@ -238,29 +252,61 @@ function lastImportInBlobStorage (account, key, container, callback) {
 }
 
 
+function ensureContainerExists (account, key, container, callback) {
+  var service = azure.createBlobService(account, key);
+  service.createContainerIfNotExists(container, null, function(error, result, response){
+    if (error) { return callback(error); }
+    debug('%s container %s', container, result ? 'has been created' : 'already exists');
+    callback(null);
+  });
+}
+
+
 function deleteDatabase (db, callback) {
   db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
   sqlmgmt.databases.deleteMethod(db.server.split('.')[0], db.name, function (error, result) {
     if (error) {
-      debug('cannot delete database ' + db.name + ': ' + error);
+      debug('cannot delete database %s: %s', db.name, error);
     } else {
-      debug('successfully deleted database ' + db.name);
+      debug('successfully deleted database %s', db.name);
     }
     callback(error);
   });
 }
 
+
 function deleteBlob (blob, callback) {
   function processRequest (error, accountKey) {
     var service = azure.createBlobService(blob.accountName, accountKey);
     service.deleteBlob(blob.container, blob.name, function (error, result) {
-    if (error) {
-      debug('cannot delete blob ' + blob.container + '/' + blob.name + ': ' + error);
-    } else {
-      debug('successfully deleted blob ' + blob.container + '/' + blob.name);
-    }
-    callback(error);
-  });
+      if (error) {
+        debug('cannot delete blob %s/%s: %s', blob.container, blob.name, error);
+      } else {
+        debug('successfully deleted blob %s/%s', blob.container, blob.name);
+      }
+      callback(error);
+    });
+  }
+
+  if (blob.accountKey) {
+    processRequest(null, blob.accountKey);
+  } else {
+    blobAccountKey(blob.accountName, processRequest);
+  }
+}
+
+
+function deleteContainer (blob, callback) {
+  function processRequest (error, accountKey) {
+    var service = azure.createBlobService(blob.accountName, accountKey);
+    service.deleteContainer(blob.container, function (error, result) {
+      if (error) {
+        debug('cannot delete container %s: %s', blob.container, error);
+      } else {
+        debug('successfully deleted container %s', blob.container);
+      }
+      callback(error);
+    });
   }
 
   if (blob.accountKey) {

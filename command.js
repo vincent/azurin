@@ -17,13 +17,14 @@ program
   .option('--db-password <password>', 'Database password')
   .option('--db-server <server>',     'Database server')
   .option('--db-name <name>',         'Database name')
+  .option('--db-edition <edition>',   'Database edition, defaults to Business')
+  .option('--db-size <size>',         'Database size in Gb, defaults to 10')
   .option('--blob-account <account>', 'Blob storage account name, defaults to AZURE_STORAGE_ACCOUNT')
   .option('--blob-account-key <key>', 'Blob storage account key, optional, defaults to AZURE_STORAGE_ACCESS_KEY')
   .option('--blob-name <cont/name>',  'Blob name, defaults to DB/YYYY-MM-DD-HH-mm.bacpac')
   .option('--blob-container <cont>',  'Blob container, defaults to database name')
   .option('--request-id',             'Request GUID')
   .option('--wait',                   'Wait for the request to finish')
-  .option('--verbose',                'Verbose')
   .parse(process.argv);
 
 program.on('--help', function(){
@@ -35,13 +36,9 @@ program.on('--help', function(){
   console.log('');
 });
 
-program.certificate    = program.certificate    || process.env.process.env.AZURE_CERTIFICATE;
+program.certificate    = program.certificate    || process.env.AZURE_CERTIFICATE;
 program.blobAccount    = program.blobAccount    || process.env.AZURE_STORAGE_ACCOUNT;
 program.blobAccountKey = program.blobAccountKey || process.env.AZURE_STORAGE_ACCESS_KEY;
-
-if (program.verbose) {
-    debug.enable('azurin');
-}
 
 var op = program.args[0];
 
@@ -51,7 +48,7 @@ var azurin = Azurin(program.certificate);
 
 if (op !== 'status' && op !== 'backup' && op !== 'restore' ||
   ! (program.dbUser && program.dbPassword && program.dbServer && program.dbName) ||
-  ! (program.blobAccount && program.blobAccountKey)) {
+  ! (program.blobAccount)) {
   program.help();
 }
 
