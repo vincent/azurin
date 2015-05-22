@@ -55,7 +55,7 @@ module.exports = function (certificate, subscriptionId) {
  */
 function exportToBlob (db, blob, callback) {
 
-  debug('will backup ' + db.server + '/' + db.name + ' to ' + blob.accountName + '/' + blob.name);
+  debug('will backup ' + db.server + '/' + blob.container + '/' + db.name + ' to ' + blob.accountName + '/' + blob.name);
 
   function processRequest (error, primaryKey) {
 
@@ -121,7 +121,7 @@ function exportToBlob (db, blob, callback) {
  */
 function importFromBlob (db, blob, callback) {
 
-  debug('will restore ' + blob.accountName + '/' + blob.name + ' to ' + db.server + '/' + db.name);
+  debug('will restore ' + blob.accountName + '/' + blob.container + '/' + blob.name + ' to ' + db.server + '/' + db.name);
 
   assert(blob.name,        'You must provide blob.name');
   assert(blob.accountName, 'You must provide blob.accountName');
@@ -212,7 +212,7 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
 
       // still running
       else {
-        debug('still ' + req.status.toLowerCase());
+        debug('still ' + req.status.toLowerCase() + (req.errorMessage ? ': ' + req.errorMessage : ''));
         setTimeout(retry, 10 * 1000);
       }
     });
