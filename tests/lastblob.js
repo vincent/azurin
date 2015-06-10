@@ -12,7 +12,7 @@ var assert = require('assert');
 
 var blob = {
   container: process.env.AZURIN_TEST_STORAGE_CONTAINER,
-  name: process.env.AZURIN_TEST_STORAGE_ACCOUNT
+  name: process.env.AZURIN_TEST_BLOBACCOUNT
 };
 
 describe('#lastImportInBlobStorage()', function(){
