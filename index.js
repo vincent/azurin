@@ -19,6 +19,10 @@ var cloudCredentials, sqlmgmt, storagemgmt;
  */
 module.exports = function (certificate, subscriptionId) {
 
+  if (! certificate) {
+    throw Error('Cannot continue without certificate');
+  }
+
   subscriptionId = subscriptionId || path.basename(certificate, '.pem');
 
   cloudCredentials = mgmtSQL.createCertificateCloudCredentials({
@@ -39,6 +43,7 @@ module.exports = function (certificate, subscriptionId) {
     // mainly for tests
     deleteDatabase: deleteDatabase,
     deleteContainer: deleteContainer,
+    blobAccountKey: blobAccountKey,
     deleteBlob: deleteBlob
   };
 };
@@ -222,7 +227,9 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
 
 
 function sortBlobs (a, b) {
-  return a.properties['last-modified'] > b.properties['last-modified'] ? 1 : -1;
+  var aDate = new Date(a.properties['last-modified']).toISOString();
+  var bDate = new Date(b.properties['last-modified']).toISOString();
+  return aDate > bDate ? 1 : -1;
 }
 
 
