@@ -252,7 +252,10 @@ function blobAccountKey (accountName, callback) {
 function lastImportInBlobStorage (account, key, container, callback) {
   var service = azure.createBlobService(account, key);
   service.listBlobsSegmented(container, null, function(error, result, response){
-    if (error || !result.entries) { return callback(error); }
+    if (error || !result.entries) {
+      debug(error);
+      return callback(error);
+    }
     result.entries.sort(sortBlobs);
     callback(null, result.entries.pop());
   });
@@ -262,7 +265,10 @@ function lastImportInBlobStorage (account, key, container, callback) {
 function ensureContainerExists (account, key, container, callback) {
   var service = azure.createBlobService(account, key);
   service.createContainerIfNotExists(container, null, function(error, result, response){
-    if (error) { return callback(error); }
+    if (error) {
+      debug(error);
+      return callback(error);
+    }
     debug('%s container %s', container, result ? 'has been created' : 'already exists');
     callback(null);
   });

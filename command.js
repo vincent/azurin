@@ -104,6 +104,9 @@ if (op === 'status') {
 
 } else {
   guessBlobName(op, function(error, name) {
+    if (error) {
+      return console.error('No backup found in ' + blob.accountName + '/' + blob.container);
+    }
     azurin[op](db, blob, function(error, guid){
       if (error) return process.exit(1);
       if (!error && !guid) return process.exit(0);
