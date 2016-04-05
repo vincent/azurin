@@ -20,15 +20,23 @@ var cloudCredentials, sqlmgmt, storagemgmt;
 module.exports = function (certificate, subscriptionId) {
 
   if (! certificate) {
-    throw Error('Cannot continue without certificate');
+    throw Error('Cannot continue without certificate or credentials');
   }
 
-  subscriptionId = subscriptionId || path.basename(certificate, '.pem');
+  if (certificate.subscriptionId) {
 
-  cloudCredentials = mgmtSQL.createCertificateCloudCredentials({
-    subscriptionId: subscriptionId,
-    pem: fs.readFileSync(certificate)
-  });
+    cloudCredentials = certificate;
+    subscriptionId   = cloudCredentials.subscriptionId;
+
+  } else {
+
+    subscriptionId = subscriptionId || path.basename(certificate, '.pem');
+
+    cloudCredentials = mgmtSQL.createCertificateCloudCredentials({
+      subscriptionId: subscriptionId,
+      pem: fs.readFileSync(certificate)
+    });
+  }
 
   sqlmgmt     = mgmtSQL.createSqlManagementClient(cloudCredentials);
   storagemgmt = mgmtSTG.createStorageManagementClient(cloudCredentials);
@@ -60,7 +68,7 @@ module.exports = function (certificate, subscriptionId) {
  */
 function exportToBlob (db, blob, callback) {
 
-  debug('will backup ' + db.server + '/' + blob.container + '/' + db.name + ' to ' + blob.accountName + '/' + blob.name);
+  debug('will backup ' + db.server + '/' + db.name + ' to ' + blob.accountName + ':' + blob.container + '/' + blob.name);
 
   function processRequest (error, primaryKey) {
 
@@ -126,9 +134,10 @@ function exportToBlob (db, blob, callback) {
  */
 function importFromBlob (db, blob, callback) {
 
-  debug('will restore ' + blob.accountName + '/' + blob.container + '/' + blob.name + ' to ' + db.server + '/' + db.name);
+  debug('will restore ' + blob.accountName + ':' + blob.container + '/' + blob.name + ' to ' + db.server + '/' + db.name);
 
   assert(blob.name,        'You must provide blob.name');
+  assert(blob.container,   'You must provide blob.container');
   assert(blob.accountName, 'You must provide blob.accountName');
 
   assert(db.name,     'You must provide db.name');
