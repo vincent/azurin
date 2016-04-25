@@ -224,6 +224,12 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
         return callback(null);
       }
 
+      // finished previously
+      else if (req.errorMessage && req.errorMessage.replace(/[\r\n\t]/g, '').match(/it contains one or more user objects/)) {
+        debug('request ' + guid + ' finished (destination DB already filled)');
+        return callback(null);
+      }
+
       // still running
       else {
         debug('still ' + req.status.toLowerCase() + (req.errorMessage ? ': ' + req.errorMessage : ''));
