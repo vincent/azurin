@@ -1,6 +1,6 @@
 {
   "name": "azurin",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Backup and restore Azure SQL databases",
   "main": "index.js",
   "bin": {

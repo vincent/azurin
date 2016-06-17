@@ -242,9 +242,11 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
 
 
 function sortBlobs (a, b) {
-  var aDate = new Date(a.lastModified).toISOString();
-  var bDate = new Date(b.lastModified).toISOString();
-  return aDate > bDate ? 1 : -1;
+  var aDate = (a.properties && a.properties['last-modified']) ? a.properties['last-modified'] : a.lastModified;
+  var bDate = (b.properties && b.properties['last-modified']) ? b.properties['last-modified'] : b.lastModified;
+  var aISOs = new Date(aDate).toISOString();
+  var bISOs = new Date(bDate).toISOString();
+  return aISOs > bISOs ? 1 : -1;
 }
 
 
