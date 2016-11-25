@@ -104,12 +104,12 @@ function exportToBlob (db, blob, callback) {
       if (error) return callback(error);
       return sqlmgmt.dac.exportMethod(db.server.split('.')[0], parameters, function(error, result) {
 
-        if (error) {
-          debug('backup queuing failed: ' + error);
+        if (error || ! result) {
+          debug('backup queuing failed: %o', error);
           return callback(error);
         }
 
-        debug(blob.uri + ' successfully queued. Guid=' + result.guid);
+        debug('%s successfully queued. guid = %o', blob.uri, result.guid);
         callback(null, result.guid);
       });
     });
@@ -169,8 +169,8 @@ function importFromBlob (db, blob, callback) {
         serverName:   db.server,
         userName:     db.user
       },
-      azureEdition: db.edition  || 'Business',
-      databaseSizeInGB: db.size || 10,
+      azureEdition: db.edition  || 'Standard',
+      databaseSizeInGB: db.size || 20,
       blobCredentials: {
         storageAccessKey: primaryKey,
         uri: blob.uri
@@ -179,12 +179,12 @@ function importFromBlob (db, blob, callback) {
 
     return sqlmgmt.dac.importMethod(db.server.split('.')[0], parameters, function(error, result) {
 
-      if (error) {
-        debug('restore queuing failed: ' + error);
+      if (error || ! result) {
+        debug('restore queuing failed: %o', error);
         return callback(error);
       }
 
-      debug(db.name + ' successfully queued. Guid=' + result.guid);
+      debug(db.name + ' successfully queued. guid = %o', result.guid);
       callback(null, result.guid);
     });
   }
@@ -213,26 +213,26 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
       if (eachCallback) {eachCallback(error, req);}
 
       // error
-      if (error) {
-        debug('error: ' + error);
+      if (error || ! result) {
+        debug('error: %o', error);
         return callback(error);
       }
 
       // finished !
       else if (! error && (!req.status || req.status.toLowerCase() === 'completed')) {
-        debug('request ' + guid + ' finished');
+        debug('request %o finished', guid);
         return callback(null);
       }
 
       // finished previously
       else if (req.errorMessage && req.errorMessage.replace(/[\r\n\t]/g, '').match(/it contains one or more user objects/)) {
-        debug('request ' + guid + ' finished (destination DB already filled)');
+        debug('request %o finished (destination DB already filled)', guid);
         return callback(null);
       }
 
       // still running
       else {
-        debug('still ' + req.status.toLowerCase() + (req.errorMessage ? ': ' + req.errorMessage : ''));
+        debug('still %o %s', req.status.toLowerCase(), req.errorMessage);
         setTimeout(retry, 10 * 1000);
       }
     });
@@ -259,7 +259,7 @@ function blobAccountKey (accountName, callback) {
       return callback(err);
     }
 
-    debug('ask for blob accountKey: ' + accountName + ': ' + result.primaryKey);
+    debug('ask for blob accountKey: %o : %o', accountName, result.primaryKey);
 
     callback(err, result.primaryKey);
   });
