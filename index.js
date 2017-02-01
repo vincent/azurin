@@ -213,7 +213,7 @@ function waitUntilRequestFinish (db, guid, callback, eachCallback) {
       if (eachCallback) {eachCallback(error, req);}
 
       // error
-      if (error || ! result) {
+      if (error) {
         debug('error: %o', error);
         return callback(error);
       }
