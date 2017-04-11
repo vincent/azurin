@@ -1,6 +1,6 @@
 {
   "name": "azurin",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Backup and restore Azure SQL databases",
   "main": "index.js",
   "bin": {
@@ -25,13 +25,14 @@
   },
   "homepage": "https://github.com/vincent/azurin",
   "dependencies": {
+    "async": "^2.3.0",
     "azure-mgmt-sql": "^0.9.17",
     "azure-mgmt-storage": "^0.9.16",
     "azure-storage": "^0.4.3",
     "commander": "^2.8.1",
     "debug": "^2.1.3",
     "mocha": "^2.2.4",
-    "moment": "^2.10.2",
+    "moment": "^2.18.1",
     "request": "^2.55.0"
   }
 }

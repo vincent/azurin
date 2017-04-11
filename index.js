@@ -6,6 +6,7 @@ var _       = require('lodash');
 var path    = require('path');
 var assert  = require('assert');
 var request = require('request');
+var async   = require('async');
 var moment  = require('moment');
 var azure   = require('azure-storage');
 var mgmtSQL = require('azure-mgmt-sql');
@@ -49,14 +50,14 @@ module.exports = function (certificate, subscriptionId) {
     requestStatus: requestStatus,
     waitUntilRequestFinish: waitUntilRequestFinish,
     lastImportInBlobStorage: lastImportInBlobStorage,
+    rotateBackups: rotateBackups,
+    deleteBlob: deleteBlob,
 
     // mainly for tests
     deleteDatabase: deleteDatabase,
     deleteContainer: deleteContainer,
     listContainers: listContainers,
-    blobAccountKey: blobAccountKey,
-    rotateBackups: rotateBackups,
-    deleteBlob: deleteBlob
+    blobAccountKey: blobAccountKey
   };
 };
 
@@ -371,22 +372,39 @@ function rotateBackupsKeep(name, key, container, options, callback) {
           keep.last10        = _.chain(result.entries).takeRight(options.limit).map('name').value();
           keep.uniques       = _.chain(keep).values().flatten().uniq().value();
 
+          debug('keep %o blobs', keep.uniques.length);
           callback(null, keep);
         });
 }
 
-function rotateBackups(name, key, container, callback) {
-  rotateBackupsKeep(name, key, container, {}, function (error, keep) {
+function rotateBackups(name, key, container, options, callback) {
+  rotateBackupsKeep(name, key, container, options, function (error, keep) {
     azure.createBlobService(name, key)
           .listBlobsSegmented(container, null, function (error, result) {
             if (error) return callback(error);
 
-            var toDelete = _.chain(result.entries).map('name').difference(keep).value();
+            var toDelete = _.chain(result.entries).map('name').difference(keep.uniques).value()
 
-            console.log('delete', toDelete.length, 'blobs. keep', keep);
+            async.mapLimit(toDelete, 3,
+              function (blobName, next) {
+                debug('delete %o', blobName);
+                deleteBlob({
+                  container: container,
+                  accountName: name,
+                  accountKey: key,
+                  name: blobName
+                }, next);
+              },
+              function (error, result) {
+                return callback(error, {
+                  deleted: toDelete,
+                  keep: keep
+                });
+              });
           });
   });
 }
+
 
 
 var threeMonthsAgo = moment().subtract(3, 'months');
