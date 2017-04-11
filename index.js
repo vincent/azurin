@@ -2,9 +2,11 @@
 
 var debug   = require('debug')('azurin');
 var fs      = require('fs');
+var _       = require('lodash');
 var path    = require('path');
 var assert  = require('assert');
 var request = require('request');
+var moment  = require('moment');
 var azure   = require('azure-storage');
 var mgmtSQL = require('azure-mgmt-sql');
 var mgmtSTG = require('azure-mgmt-storage');
@@ -51,7 +53,9 @@ module.exports = function (certificate, subscriptionId) {
     // mainly for tests
     deleteDatabase: deleteDatabase,
     deleteContainer: deleteContainer,
+    listContainers: listContainers,
     blobAccountKey: blobAccountKey,
+    rotateBackups: rotateBackups,
     deleteBlob: deleteBlob
   };
 };
@@ -345,3 +349,58 @@ function deleteContainer (blob, callback) {
     blobAccountKey(blob.accountName, processRequest);
   }
 }
+
+function listContainers(name, key, callback) {
+  return azure.createBlobService(name, key).listContainersSegmented(null, callback);
+}
+
+function rotateBackupsKeep(name, key, container, options, callback) {
+  options       = options       || {};
+  options.limit = options.limit || 10;
+
+  var keep = {};
+
+  azure.createBlobService(name, key)
+        .listBlobsSegmented(container, null, function (error, result) {
+          if (error) return callback(error);
+          result.entries.sort(sortBlobs);
+
+          keep.lastEachYear  = _.chain(result.entries).groupBy(byYear).mapValues(takeLastName).values().value();
+          keep.lastEachMonth = _.chain(result.entries).groupBy(byMonth).mapValues(takeLastName).values().value();
+          keep.last3months   = _.chain(result.entries).filter(testMonthly).map('name').value();
+          keep.last10        = _.chain(result.entries).takeRight(options.limit).map('name').value();
+          keep.uniques       = _.chain(keep).values().flatten().uniq().value();
+
+          callback(null, keep);
+        });
+}
+
+function rotateBackups(name, key, container, callback) {
+  rotateBackupsKeep(name, key, container, {}, function (error, keep) {
+    azure.createBlobService(name, key)
+          .listBlobsSegmented(container, null, function (error, result) {
+            if (error) return callback(error);
+
+            var toDelete = _.chain(result.entries).map('name').difference(keep).value();
+
+            console.log('delete', toDelete.length, 'blobs. keep', keep);
+          });
+  });
+}
+
+
+var threeMonthsAgo = moment().subtract(3, 'months');
+function byYear(blob) {
+  return moment(blob.properties['last-modified']).year();
+}
+function byMonth(blob) {
+  return moment(blob.properties['last-modified']).format('YYYY-MM');
+}
+function testMonthly(blob) {
+  return moment(blob.properties['last-modified']).isAfter(threeMonthsAgo);
+}
+function takeLastName(blobs) {
+  if (blobs.length) return blobs[blobs.length-1].name;
+}
+
+
