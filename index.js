@@ -47,6 +47,7 @@ module.exports = function (certificate, subscriptionId) {
   return {
     backup: exportToBlob,
     restore: importFromBlob,
+    requestStop: requestStop,
     requestStatus: requestStatus,
     waitUntilRequestFinish: waitUntilRequestFinish,
     lastImportInBlobStorage: lastImportInBlobStorage,
@@ -210,6 +211,13 @@ function requestStatus (db, guid, callback) {
   });
 }
 
+function requestStop (db, guid, callback) {
+  db.server = db.server.match(/database.windows.net/) ? db.server : db.server + '.database.windows.net';
+  return sqlmgmt.databaseCopies.deleteMethod(db.server.split('.')[0], db.name, guid, function (error, result) {
+    if (error || !result) { return callback(error); }
+    callback(error, result.statusCode);
+  });
+}
 
 function waitUntilRequestFinish (db, guid, callback, eachCallback) {
   function retry () {
